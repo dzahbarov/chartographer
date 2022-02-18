@@ -5,12 +5,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Lob;
+import javax.persistence.*;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Positive;
+import java.util.List;
 
 
 /**
@@ -34,13 +32,12 @@ public class Charta {
     @Max(20_000)
     private int width;
 
-    @Lob
-    private byte[] image;
+    @OneToMany()
+    private List<Block> blocks;
 
-    public Charta(int width, int height, byte[] image) {
+    public Charta(int width, int height) {
         this.height = height;
         this.width = width;
-        this.image = image;
     }
 
     public Charta() {

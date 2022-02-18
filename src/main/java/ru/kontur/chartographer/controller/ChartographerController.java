@@ -13,6 +13,7 @@ import ru.kontur.chartographer.service.ChartaService;
 import javax.validation.ConstraintViolationException;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Positive;
+import java.io.IOException;
 
 /**
  * @author dzahbarov
@@ -29,10 +30,12 @@ public class ChartographerController {
         this.chartaService = chartaService;
     }
 
+
+    // кое как работает
     @PostMapping()
     @ResponseStatus(HttpStatus.CREATED)
     public String createImage(@RequestParam @Positive @Max(20_000) Integer width,
-                              @RequestParam @Positive @Max(50_000) Integer height) {
+                              @RequestParam @Positive @Max(50_000) Integer height) throws IOException {
         return Long.toString(chartaService.createImage(width, height).getId());
     }
 
@@ -42,7 +45,7 @@ public class ChartographerController {
                             @RequestParam int y,
                             @RequestParam @Positive @Max(20_000) int width,
                             @RequestParam @Positive @Max(50_000) int height,
-                            @RequestParam(value = "image") MultipartFile image) {
+                            @RequestParam(value = "image") MultipartFile image) throws IOException {
         chartaService.updateCharta(id, x, y, width, height, image);
     }
 
@@ -51,7 +54,7 @@ public class ChartographerController {
                              @RequestParam int x,
                              @RequestParam int y,
                              @RequestParam @Positive @Max(5000) int width,
-                             @RequestParam @Positive @Max(5000) int height) {
+                             @RequestParam @Positive @Max(5000) int height) throws IOException {
         return new ByteArrayResource(chartaService.getSubCharta(id, x, y, width, height));
     }
 
