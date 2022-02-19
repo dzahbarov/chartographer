@@ -48,8 +48,6 @@ public class ChartaService {
 
         validateCoordinates(chartaFromDb, x, y, width, height);
 
-        // может выезжать за границы
-
         BufferedImage concatImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = concatImage.createGraphics();
         int currentHeight = 0;
@@ -150,63 +148,69 @@ public class ChartaService {
 
     public void updateCharta(long id, int x, int y, int width, int height, MultipartFile image) throws IOException {
 
-        // Тут плохо
         Charta chartaFromDb = chartaRepository.findById(id)
                 .orElseThrow(() -> new ChartaNotFoundException("Charta with id " + id + " is not found"));
 
         validateCoordinates(chartaFromDb, x, y, width, height);
 
+        // Надеюсь что она влезет в память
         InputStream newImageIs = new ByteArrayInputStream(image.getBytes());
+
         int currentHeight = 0;
-        int prev = 0;
+
+        int saved_y = y;
+        int saved_height = height;
         BufferedImage newImage = ImageIO.read(newImageIs);
         for (int i = 0; i < chartaFromDb.getBlocks().size(); i++) {
             int startBlock = 5000 * i;
             int endBlock = 5000 * (i + 1) - 1;
 
-            if (y <= endBlock && y >= startBlock || y + height <= endBlock && y + height >= startBlock || y + height >= endBlock && y <= startBlock) {
-                int yStart = Math.max(y - startBlock, 0);
-                int newHeight = Math.min(endBlock - y, y + height - startBlock);
+            y = saved_y;
+            height = saved_height;
 
-                BufferedImage blImage = fileSystemRepository.findInFileSystem(chartaFromDb.getBlocks().get(i).getLocation());
+            if (y <= endBlock && y >= startBlock || y + height <= endBlock && y + height >= startBlock || y + height >= endBlock && y <= startBlock) {
+
+                BufferedImage blockFromDb = fileSystemRepository.findInFileSystem(chartaFromDb.getBlocks().get(i).getLocation());
+                Block block = chartaFromDb.getBlocks().get(i);
+
+                y = y - startBlock;
+
+                int x_shift = 0;
+                if (x < 0) {
+                    x_shift = Math.abs(x);
+                    width = width - x_shift;
+                    x = 0;
+                }
+
+                int y_shift = 0;
+                if (y < 0) {
+                    y_shift = Math.abs(y);
+                    height = height - y_shift;
+                    y = 0;
+                }
+
+                if (x + width > block.getWidth()) {
+                    width = block.getWidth() - x - 1;
+                }
+
+                if (y + height > block.getHeight()) {
+                    height = block.getHeight() - y - 1;
+                }
+
+                if (currentHeight != 0) {
+                    y_shift = 0;
+                }
 
                 for (int j = 0; j < width; j++) {
-                    for (int k = 0; k < newHeight; k++) {
-                        blImage.setRGB(x + j, yStart + k, newImage.getRGB(j, k + prev));
+                    for (int k = 0; k < height; k++) {
+                        blockFromDb.setRGB(x + j, y + k, newImage.getRGB(j + x_shift, currentHeight + k + y_shift));
                     }
                 }
-                prev = newHeight;
 
-                // block save
-                ImageIO.write(blImage, "bmp", new File(chartaFromDb.getBlocks().get(i).getLocation()));
-//                newImage.getRGB();
-//                BufferedImage image = processBlock(chartaFromDb.getBlocks().get(i), x, yStart, width, newHeight);
-
-                ;
-//                currentHeight += image.getHeight();
+                currentHeight += height;
+                ImageIO.write(blockFromDb, "bmp", new File(chartaFromDb.getBlocks().get(i).getLocation()));
             }
         }
-
-
-//        InputStream is = new ByteArrayInputStream(chartaFromDb.getImage());
-//
-//        try {
-//            InputStream newImageIs = new ByteArrayInputStream(image.getBytes());
-//
-//            BufferedImage imageFromDb = ImageIO.read(is);
-//            BufferedImage newImage = ImageIO.read(newImageIs);
-//
-//            for (int i = y; i < x + height; i++) {
-//                for (int j = x; j < y + width; j++) {
-//                    imageFromDb.setRGB(i, j, newImage.getRGB(i - y, j - x));
-//                }
-//            }
-//
-////            chartaFromDb.setImage(getBytes(imageFromDb));
-//            chartaRepository.save(chartaFromDb);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
     }
 
     public void deleteImage(long id) {
@@ -231,18 +235,4 @@ public class ChartaService {
             throw new InvalidChartaCoordinatesException("Invalid coordinates for updating");
         }
     }
-
-//    public String save(MultipartFile image) {
-//        Charta charta = new Charta();
-//        try {
-//            charta.setImage(image.getBytes());
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//        return Long.toString(chartaRepository.save(charta).getId());
-//    }
-
-//    public byte[] getPic(long id) {
-//        return chartaRepository.findById(id).orElse(null).getImage();
-//    }
 }

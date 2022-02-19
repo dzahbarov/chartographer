@@ -45,7 +45,7 @@ public class ChartographerController {
                             @RequestParam int y,
                             @RequestParam @Positive @Max(20_000) int width,
                             @RequestParam @Positive @Max(50_000) int height,
-                            @RequestParam(value = "image") MultipartFile image) throws IOException {
+                            @RequestParam(value = "image", required = true) MultipartFile image) throws IOException {
         chartaService.updateCharta(id, x, y, width, height, image);
     }
 
