@@ -1,3 +1,4 @@
+
 package ru.kontur.chartographer.service;
 
 import org.springframework.stereotype.Service;
@@ -49,19 +50,77 @@ public class ChartaService {
 
         // может выезжать за границы
 
-        BufferedImage concatImage = new BufferedImage(width,  height, BufferedImage.TYPE_INT_RGB);
+        BufferedImage concatImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = concatImage.createGraphics();
         int currentHeight = 0;
+        int saved_x = x;
+        int saved_y = y;
+        int saved_height = height;
+
         for (int i = 0; i < chartaFromDb.getBlocks().size(); i++) {
             int startBlock = 5000 * i;
-            int endBlock = 5000 * (i + 1)-1;
+            int endBlock = 5000 * (i + 1) - 1;
 
+            x = saved_x;
+            y = saved_y;
+            height = saved_height;
             if (y <= endBlock && y >= startBlock || y + height <= endBlock && y + height >= startBlock || y + height >= endBlock && y <= startBlock) {
 
-                int yStart = Math.max(y-startBlock, 0);
-                int newHeight = Math.min(endBlock - y, y + height - startBlock);
-                //
-                BufferedImage image = processBlock(chartaFromDb.getBlocks().get(i), x, yStart, width, newHeight);
+                Block block = chartaFromDb.getBlocks().get(i);
+
+                y = y - startBlock;
+
+                // Если y отрицательный, то нужно поменять высоту
+                // Если x отрицательный, то нужно поменять ширину
+
+                // Посчитали сдвиг по x
+                int x_shift = 0;
+                if (x < 0) {
+                    x_shift = Math.abs(x);
+                }
+
+                // Посчитали сдвиг по y
+                int y_shift = 0;
+                if (y < 0) {
+                    y_shift = Math.abs(y);
+                }
+
+                // y - начало по высоте, y + height - конец по высоте
+
+                // Случай, если y вылезает в отрицательные
+                int new_height = height;
+                if (y < 0) {
+                    new_height = height - Math.abs(y);
+                    y = 0;
+                }
+
+                // Случай, если x вылезает в отрицательные
+                int new_width = width;
+                if (x < 0) {
+                    new_width = width - Math.abs(x);
+                    x = 0;
+                }
+
+                // Пересчитаем ширину, чтобы она влезала в границы картинки
+                if (x + new_width > block.getWidth()) {
+                    new_width = block.getWidth() - x - 1;
+                }
+
+                // Пересчитаем высоту, чтобы она влезала в границы картинки
+                if (y + new_height > block.getHeight()) {
+                    new_height = block.getHeight() - y - 1;
+                    height = block.getHeight() - y - 1;
+                }
+
+                // Теперь займемся блоками со склейкой
+                // Нужно пересчитать высоту при склейке
+                height -= currentHeight;
+
+                if (currentHeight != 0) {
+                    y_shift = 0;
+                }
+
+                BufferedImage image = processBlock(block, x, y, width, height, new_width, new_height, x_shift, y_shift);
 
                 g2d.drawImage(image, 0, currentHeight, null);
                 currentHeight += image.getHeight();
@@ -73,11 +132,16 @@ public class ChartaService {
         return getBytes(concatImage);
     }
 
-    private BufferedImage processBlock(Block block, int x, int y, int width, int height) {
+    private BufferedImage processBlock(Block block, int x, int y, int old_width, int old_height, int new_width, int new_height, int x_shift, int y_shift) {
         BufferedImage image = fileSystemRepository.findInFileSystem(block.getLocation());
-        BufferedImage newImg = new BufferedImage(width,  height, BufferedImage.TYPE_INT_RGB);
+        // Создали блок нужного размера
+        // Но надо сверху высоту пересчитать
+        BufferedImage newImg = new BufferedImage(old_width, old_height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = newImg.createGraphics();
-        g2d.drawImage(image.getSubimage(Math.max(x, 0), y, image.getWidth()+x, Math.min(image.getHeight(), image.getHeight() - y)), x, y, null);
+
+        // Считаем, что x, y уже пересчитаны так, что он не отрицательные
+        // Ширина и высота влезают в границы картинки
+        g2d.drawImage(image.getSubimage(x, y, new_width, new_height), x_shift, y_shift, null);
         g2d.dispose();
         return newImg;
 
@@ -98,17 +162,17 @@ public class ChartaService {
         BufferedImage newImage = ImageIO.read(newImageIs);
         for (int i = 0; i < chartaFromDb.getBlocks().size(); i++) {
             int startBlock = 5000 * i;
-            int endBlock = 5000 * (i + 1)-1;
+            int endBlock = 5000 * (i + 1) - 1;
 
             if (y <= endBlock && y >= startBlock || y + height <= endBlock && y + height >= startBlock || y + height >= endBlock && y <= startBlock) {
-                int yStart = Math.max(y-startBlock, 0);
+                int yStart = Math.max(y - startBlock, 0);
                 int newHeight = Math.min(endBlock - y, y + height - startBlock);
 
                 BufferedImage blImage = fileSystemRepository.findInFileSystem(chartaFromDb.getBlocks().get(i).getLocation());
 
                 for (int j = 0; j < width; j++) {
                     for (int k = 0; k < newHeight; k++) {
-                        blImage.setRGB(x + j, yStart + k, newImage.getRGB(j, k+prev));
+                        blImage.setRGB(x + j, yStart + k, newImage.getRGB(j, k + prev));
                     }
                 }
                 prev = newHeight;
@@ -118,12 +182,10 @@ public class ChartaService {
 //                newImage.getRGB();
 //                BufferedImage image = processBlock(chartaFromDb.getBlocks().get(i), x, yStart, width, newHeight);
 
-              ;
+                ;
 //                currentHeight += image.getHeight();
             }
         }
-
-
 
 
 //        InputStream is = new ByteArrayInputStream(chartaFromDb.getImage());
@@ -165,7 +227,7 @@ public class ChartaService {
     }
 
     private void validateCoordinates(Charta chartaFromDb, int x, int y, int width, int height) {
-        if (x > chartaFromDb.getWidth() || y > chartaFromDb.getHeight() || x + width < 0 || y + height < 0) {
+        if (x >= chartaFromDb.getWidth() || y >= chartaFromDb.getHeight() || x + width <= 0 || y + height <= 0) {
             throw new InvalidChartaCoordinatesException("Invalid coordinates for updating");
         }
     }

@@ -19,4 +19,7 @@ public class Block {
 
     private String location;
 
+    private int width;
+
+    private int height;
 }

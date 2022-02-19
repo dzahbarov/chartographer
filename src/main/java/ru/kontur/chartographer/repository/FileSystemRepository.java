@@ -96,6 +96,8 @@ public class FileSystemRepository {
         File file = new File(newFile);
         ImageIO.write(new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB), "bmp", file);
         Block block = new Block();
+        block.setHeight(height);
+        block.setWidth(width);
         block.setLocation(newFile);
         blockRepository.save(block);
         return block;
