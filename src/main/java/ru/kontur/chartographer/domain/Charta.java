@@ -1,6 +1,5 @@
 package ru.kontur.chartographer.domain;
 
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -18,6 +17,7 @@ import java.util.List;
 @Entity
 @Getter
 @Setter
+@NoArgsConstructor
 public class Charta {
 
     @Id
@@ -38,9 +38,5 @@ public class Charta {
     public Charta(int width, int height) {
         this.height = height;
         this.width = width;
-    }
-
-    public Charta() {
-
     }
 }

@@ -1,4 +1,3 @@
-
 package ru.kontur.chartographer.service;
 
 import org.springframework.stereotype.Service;
@@ -6,6 +5,7 @@ import org.springframework.web.multipart.MultipartFile;
 import ru.kontur.chartographer.domain.Block;
 import ru.kontur.chartographer.domain.Charta;
 import ru.kontur.chartographer.exception.ChartaNotFoundException;
+import ru.kontur.chartographer.exception.ChartaUploadingException;
 import ru.kontur.chartographer.exception.InvalidChartaCoordinatesException;
 import ru.kontur.chartographer.exception.RenderImageException;
 import ru.kontur.chartographer.repository.BlockRepository;
@@ -16,6 +16,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -35,22 +36,22 @@ public class ChartaService {
         this.blockRepository = blockRepository;
     }
 
-    public Charta createImage(int width, int height) throws IOException {
+    public Charta createImage(int width, int height) {
         Charta charta = chartaRepository.save(new Charta(width, height));
-        List<Block> blocks = fileSystemRepository.generateEmptyBlocks(width, height, charta.getId());
-        charta.setBlocks(blocks);
+        charta.setBlocks(generateEmptyBlocks(width, height, charta.getId()));
         return chartaRepository.save(charta);
     }
 
-    public byte[] getSubCharta(long id, int x, int y, int width, int height) throws IOException {
-        Charta chartaFromDb = chartaRepository.findById(id)
-                .orElseThrow(() -> new ChartaNotFoundException("Charta with id " + id + " is not found"));
+    public byte[] getSubCharta(long id, int x, int y, int width, int height) {
+        Charta chartaFromDb = chartaRepository.findById(id).orElseThrow(() -> new ChartaNotFoundException("Charta with id " + id + " is not found"));
 
         validateCoordinates(chartaFromDb, x, y, width, height);
 
-        BufferedImage concatImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2d = concatImage.createGraphics();
+        BufferedImage resultImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphic = resultImage.createGraphics();
+
         int currentHeight = 0;
+
         int saved_x = x;
         int saved_y = y;
         int saved_height = height;
@@ -62,72 +63,150 @@ public class ChartaService {
             x = saved_x;
             y = saved_y;
             height = saved_height;
-            if (y <= endBlock && y >= startBlock || y + height <= endBlock && y + height >= startBlock || y + height >= endBlock && y <= startBlock) {
+
+            if (isGoodBlock(y, endBlock, startBlock, height)) {
 
                 Block block = chartaFromDb.getBlocks().get(i);
 
                 y = y - startBlock;
 
-                // Если y отрицательный, то нужно поменять высоту
-                // Если x отрицательный, то нужно поменять ширину
+                // Посчитали сдвиг по x и y
+                int x_shift = getShift(x);
+                int y_shift = getShift(y);
 
-                // Посчитали сдвиг по x
-                int x_shift = 0;
-                if (x < 0) {
-                    x_shift = Math.abs(x);
-                }
+                // Случай, если x или y вылезает в отрицательные
+                int new_height = getHeight(y, height);
+                int new_width = getWidth(x, width);
+                y = Math.max(y, 0);
+                x = Math.max(x, 0);
 
-                // Посчитали сдвиг по y
-                int y_shift = 0;
-                if (y < 0) {
-                    y_shift = Math.abs(y);
-                }
+                // Пересчитаем ширину и высоту, чтобы они влезали в границы картинки
+                new_width = changeWidthForBorders(x, block, new_width);
+                new_height = changeHeightForBorders(y, block, new_height);
 
-                // y - начало по высоте, y + height - конец по высоте
+                height = changeHeightForBorders(y, block, new_height);
 
-                // Случай, если y вылезает в отрицательные
-                int new_height = height;
-                if (y < 0) {
-                    new_height = height - Math.abs(y);
-                    y = 0;
-                }
-
-                // Случай, если x вылезает в отрицательные
-                int new_width = width;
-                if (x < 0) {
-                    new_width = width - Math.abs(x);
-                    x = 0;
-                }
-
-                // Пересчитаем ширину, чтобы она влезала в границы картинки
-                if (x + new_width > block.getWidth()) {
-                    new_width = block.getWidth() - x - 1;
-                }
-
-                // Пересчитаем высоту, чтобы она влезала в границы картинки
-                if (y + new_height > block.getHeight()) {
-                    new_height = block.getHeight() - y - 1;
-                    height = block.getHeight() - y - 1;
-                }
-
-                // Теперь займемся блоками со склейкой
                 // Нужно пересчитать высоту при склейке
                 height -= currentHeight;
-
-                if (currentHeight != 0) {
-                    y_shift = 0;
-                }
+                if (currentHeight != 0) y_shift = 0;
 
                 BufferedImage image = processBlock(block, x, y, width, height, new_width, new_height, x_shift, y_shift);
-
-                g2d.drawImage(image, 0, currentHeight, null);
+                graphic.drawImage(image, 0, currentHeight, null);
                 currentHeight += image.getHeight();
             }
         }
+        graphic.dispose();
+        return getBytes(resultImage);
+    }
 
-        g2d.dispose();
+    public void updateCharta(long id, int x, int y, int width, int height, MultipartFile image) {
 
-        return getBytes(concatImage);
+        Charta chartaFromDb = chartaRepository.findById(id).orElseThrow(() -> new ChartaNotFoundException("Charta with id " + id + " is not found"));
+
+        validateCoordinates(chartaFromDb, x, y, width, height);
+
+        int currentHeight = 0;
+
+        int saved_y = y;
+        int saved_height = height;
+
+        // Надеюсь, что влезет в память
+        BufferedImage newImage;
+        try {
+            newImage = ImageIO.read(new ByteArrayInputStream(image.getBytes()));
+        } catch (IOException e) {
+            throw new ChartaUploadingException("Charta during processing uploaded charta: " + e.getMessage());
+        }
+
+        for (int i = 0; i < chartaFromDb.getBlocks().size(); i++) {
+            int startBlock = 5000 * i;
+            int endBlock = 5000 * (i + 1) - 1;
+
+            y = saved_y;
+            height = saved_height;
+
+            if (isGoodBlock(y, endBlock, startBlock, height)) {
+
+                Block block = chartaFromDb.getBlocks().get(i);
+                BufferedImage blockFromDb = fileSystemRepository.findInFileSystem(block.getLocation());
+
+                y = y - startBlock;
+
+                int x_shift = getShift(x);
+                int y_shift = getShift(y);
+
+                if (x < 0) width -= x_shift;
+                x = Math.max(x, 0);
+
+                if (y < 0) height -= y_shift;
+                y = Math.max(y, 0);
+
+
+                width = changeWidthForBorders(x, block, width);
+                height = changeHeightForBorders(y, block, height);
+
+                if (currentHeight != 0) y_shift = 0;
+
+                for (int j = 0; j < width; j++) {
+                    for (int k = 0; k < height; k++) {
+                        blockFromDb.setRGB(x + j, y + k, newImage.getRGB(j + x_shift, currentHeight + k + y_shift));
+                    }
+                }
+                currentHeight += height;
+                fileSystemRepository.updateBlock(blockFromDb, block);
+            }
+        }
+    }
+
+    // TODO добавить удаление
+    public void deleteImage(long id) {
+        if (!chartaRepository.existsById(id)) {
+            throw new ChartaNotFoundException("Charta with id " + id + " is not found");
+        }
+        chartaRepository.deleteById(id);
+    }
+
+
+    private int changeHeightForBorders(int y, Block block, int new_height) {
+        if (y + new_height > block.getHeight()) {
+            new_height = block.getHeight() - y - 1;
+        }
+        return new_height;
+    }
+
+    private int changeWidthForBorders(int x, Block block, int new_width) {
+        if (x + new_width > block.getWidth()) {
+            new_width = block.getWidth() - x - 1;
+        }
+        return new_width;
+    }
+
+    private int getWidth(int x, int width) {
+        int new_width = width;
+        if (x < 0) {
+            new_width = width - Math.abs(x);
+        }
+        return new_width;
+    }
+
+    private int getHeight(int y, int height) {
+        int new_height = height;
+        if (y < 0) {
+            new_height = height - Math.abs(y);
+        }
+        return new_height;
+    }
+
+    private int getShift(int var) {
+        int var_shift = 0;
+        if (var < 0) {
+            var_shift = Math.abs(var);
+        }
+        return var_shift;
+    }
+
+    private boolean isGoodBlock(int y, int endBlock, int startBlock, int height) {
+        return y <= endBlock && y >= startBlock || y + height <= endBlock && y + height >= startBlock || y + height >= endBlock && y <= startBlock;
     }
 
     private BufferedImage processBlock(Block block, int x, int y, int old_width, int old_height, int new_width, int new_height, int x_shift, int y_shift) {
@@ -142,82 +221,28 @@ public class ChartaService {
         g2d.drawImage(image.getSubimage(x, y, new_width, new_height), x_shift, y_shift, null);
         g2d.dispose();
         return newImg;
-
     }
 
+    private List<Block> generateEmptyBlocks(int width, int height, long chartaId) {
+        List<Block> blocks = new ArrayList<>();
 
-    public void updateCharta(long id, int x, int y, int width, int height, MultipartFile image) throws IOException {
+        long blockId = 0;
 
-        Charta chartaFromDb = chartaRepository.findById(id)
-                .orElseThrow(() -> new ChartaNotFoundException("Charta with id " + id + " is not found"));
-
-        validateCoordinates(chartaFromDb, x, y, width, height);
-
-        // Надеюсь что она влезет в память
-        InputStream newImageIs = new ByteArrayInputStream(image.getBytes());
-
-        int currentHeight = 0;
-
-        int saved_y = y;
-        int saved_height = height;
-        BufferedImage newImage = ImageIO.read(newImageIs);
-        for (int i = 0; i < chartaFromDb.getBlocks().size(); i++) {
-            int startBlock = 5000 * i;
-            int endBlock = 5000 * (i + 1) - 1;
-
-            y = saved_y;
-            height = saved_height;
-
-            if (y <= endBlock && y >= startBlock || y + height <= endBlock && y + height >= startBlock || y + height >= endBlock && y <= startBlock) {
-
-                BufferedImage blockFromDb = fileSystemRepository.findInFileSystem(chartaFromDb.getBlocks().get(i).getLocation());
-                Block block = chartaFromDb.getBlocks().get(i);
-
-                y = y - startBlock;
-
-                int x_shift = 0;
-                if (x < 0) {
-                    x_shift = Math.abs(x);
-                    width = width - x_shift;
-                    x = 0;
-                }
-
-                int y_shift = 0;
-                if (y < 0) {
-                    y_shift = Math.abs(y);
-                    height = height - y_shift;
-                    y = 0;
-                }
-
-                if (x + width > block.getWidth()) {
-                    width = block.getWidth() - x - 1;
-                }
-
-                if (y + height > block.getHeight()) {
-                    height = block.getHeight() - y - 1;
-                }
-
-                if (currentHeight != 0) {
-                    y_shift = 0;
-                }
-
-                for (int j = 0; j < width; j++) {
-                    for (int k = 0; k < height; k++) {
-                        blockFromDb.setRGB(x + j, y + k, newImage.getRGB(j + x_shift, currentHeight + k + y_shift));
-                    }
-                }
-
-                currentHeight += height;
-                ImageIO.write(blockFromDb, "bmp", new File(chartaFromDb.getBlocks().get(i).getLocation()));
-            }
+        while (height >= 5000) {
+            blocks.add(createBlock(chartaId, blockId++, width, 5000));
+            height -= 5000;
         }
+
+        if (height > 0) {
+            blocks.add(createBlock(chartaId, blockId, width, height));
+        }
+
+        return blocks;
     }
 
-    public void deleteImage(long id) {
-        if (!chartaRepository.existsById(id)) {
-            throw new ChartaNotFoundException("Charta with id " + id + " is not found");
-        }
-        chartaRepository.deleteById(id);
+    private Block createBlock(long chartaId, long blockId, int width, int height) {
+        String location = fileSystemRepository.createBlock(chartaId, blockId, width, height);
+        return blockRepository.save(new Block(width, height, location));
     }
 
     private byte[] getBytes(BufferedImage image) {

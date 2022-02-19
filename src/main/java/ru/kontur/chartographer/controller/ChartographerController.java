@@ -13,7 +13,6 @@ import ru.kontur.chartographer.service.ChartaService;
 import javax.validation.ConstraintViolationException;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Positive;
-import java.io.IOException;
 
 /**
  * @author dzahbarov
@@ -30,12 +29,10 @@ public class ChartographerController {
         this.chartaService = chartaService;
     }
 
-
-    // кое как работает
     @PostMapping()
     @ResponseStatus(HttpStatus.CREATED)
     public String createImage(@RequestParam @Positive @Max(20_000) Integer width,
-                              @RequestParam @Positive @Max(50_000) Integer height) throws IOException {
+                              @RequestParam @Positive @Max(50_000) Integer height) {
         return Long.toString(chartaService.createImage(width, height).getId());
     }
 
@@ -45,7 +42,7 @@ public class ChartographerController {
                             @RequestParam int y,
                             @RequestParam @Positive @Max(20_000) int width,
                             @RequestParam @Positive @Max(50_000) int height,
-                            @RequestParam(value = "image", required = true) MultipartFile image) throws IOException {
+                            @RequestParam(value = "image") MultipartFile image) {
         chartaService.updateCharta(id, x, y, width, height, image);
     }
 
@@ -54,7 +51,7 @@ public class ChartographerController {
                              @RequestParam int x,
                              @RequestParam int y,
                              @RequestParam @Positive @Max(5000) int width,
-                             @RequestParam @Positive @Max(5000) int height) throws IOException {
+                             @RequestParam @Positive @Max(5000) int height) {
         return new ByteArrayResource(chartaService.getSubCharta(id, x, y, width, height));
     }
 
@@ -68,16 +65,4 @@ public class ChartographerController {
     public ResponseEntity<String> handleConstraintViolationException(ConstraintViolationException e) {
         return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
     }
-
-    //    @PostMapping("test")
-//    public String saveImage(@RequestParam(value = "image", required = true) MultipartFile image) {
-//        return chartaService.save(image).toString();
-//    }
-
-//    @GetMapping(value = "test/{id}", produces = "image/bmp")
-//    public Resource getImage(@PathVariable String id) {
-//        byte[] image = chartaService.getPic(id);
-//
-//        return new ByteArrayResource(image);
-//    }
 }
