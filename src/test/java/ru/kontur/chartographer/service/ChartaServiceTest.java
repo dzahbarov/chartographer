@@ -44,26 +44,6 @@ class ChartaServiceTest {
     @MockBean
     private BlockRepository blockRepository;
 
-    @Test
-    void createSmallImage() {
-        int width = 360;
-        int height = 360;
-
-        Mockito.doReturn(new Charta(42L, width, height))
-                .when(chartaRepository)
-                .save(ArgumentMatchers.any(Charta.class));
-
-        Charta image = chartaService.createImage(width, height);
-
-        Mockito.verify(chartaRepository, Mockito.times(2)).save(ArgumentMatchers.any());
-        Mockito.verify(fileSystemRepository, Mockito.times(1)).createBlock(42L, 0, width, height);
-        Mockito.verify(blockRepository, Mockito.times(1)).save(ArgumentMatchers.any());
-
-        assertEquals(image.getBlocks().size(), 1);
-    }
-
-
-
     @Test()
     void testSubChartaInvalidCoordinates() {
         testCoordinates(150, 0, 1, 2);
@@ -259,6 +239,26 @@ class ChartaServiceTest {
         Block block1 = new Block(0, 400, 5000, 0, 4999);
         Block block2 = new Block(1, 400, 1000, 5000, 5999);
         runTestDouble(22, block2, block1, 400, 6000, -378, 4595, 1152, 1458);
+    }
+
+
+
+    @Test
+    void createSmallImage() {
+        int width = 360;
+        int height = 360;
+
+        Mockito.doReturn(new Charta(42L, width, height))
+                .when(chartaRepository)
+                .save(ArgumentMatchers.any(Charta.class));
+
+        Charta image = chartaService.createImage(width, height);
+
+        Mockito.verify(chartaRepository, Mockito.times(2)).save(ArgumentMatchers.any());
+        Mockito.verify(fileSystemRepository, Mockito.times(1)).createBlock(42L, 0, width, height);
+        Mockito.verify(blockRepository, Mockito.times(1)).save(ArgumentMatchers.any());
+
+        assertEquals(image.getBlocks().size(), 1);
     }
 
     @Test
@@ -488,7 +488,7 @@ class ChartaServiceTest {
     }
 
     private void runTestDouble(int N, Block block1, Block block2, int chartaWidth, int chartaHeight, int x, int y, int width, int height) throws IOException {
-        if (block1.getId() == 0) {
+        if (block1.getNumber() == 0) {
             block1.setLocation(String.format("src/test/resources/testSubCharta%d/block1.bmp", N));
             block2.setLocation(String.format("src/test/resources/testSubCharta%d/block2.bmp", N));
         } else {

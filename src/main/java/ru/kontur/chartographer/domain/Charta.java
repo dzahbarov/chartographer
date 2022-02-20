@@ -32,7 +32,7 @@ public class Charta {
     @Max(20_000)
     private int width;
 
-    @OneToMany()
+    @OneToMany(cascade = CascadeType.ALL)
     private List<Block> blocks;
 
     public Charta(int width, int height) {

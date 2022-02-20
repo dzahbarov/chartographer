@@ -19,6 +19,8 @@ public class Block {
     @GeneratedValue()
     private long id;
 
+    private int number;
+
     private String location;
 
     private int width;
@@ -37,26 +39,20 @@ public class Block {
         this.endOfBlock = end;
     }
 
-    public Block(int id, String location, int width, int height, int start, int end) {
-        this.id = id;
+    public Block(int number, String location, int width, int height, int start, int end) {
+        this.number = number;
         this.location = location;
         this.width = width;
         this.height = height;
         this.startOfBlock = start;
         this.endOfBlock = end;
     }
-    public Block(int id, int width, int height, int start, int end) {
-        this.id = id;
+    public Block(int number, int width, int height, int start, int end) {
+        this.number = number;
         this.width = width;
         this.height = height;
         this.startOfBlock = start;
         this.endOfBlock = end;
     }
 
-
-//    public Block(int width, int height, String location) {
-//        this.location = location;
-//        this.width = width;
-//        this.height = height;
-//    }
 }

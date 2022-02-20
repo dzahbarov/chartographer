@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import ru.kontur.chartographer.domain.Block;
 import ru.kontur.chartographer.exception.ChartaCreatingException;
+import ru.kontur.chartographer.exception.ChartaDeletingException;
 import ru.kontur.chartographer.exception.ChartaUpdatingException;
 import ru.kontur.chartographer.exception.RenderImageException;
 
@@ -25,7 +26,7 @@ public class FileSystemRepository {
     @Value("${content.folder}")
     private String str;
 
-    private String RESOURCES_DIR = System.getProperty("user.dir");
+    private final String RESOURCES_DIR = System.getProperty("user.dir");
 
     public BufferedImage findInFileSystem(String location) {
         try {
@@ -54,6 +55,22 @@ public class FileSystemRepository {
             ImageIO.write(blockFromDb, "bmp", new File(block.getLocation()));
         } catch (IOException e) {
             throw new ChartaUpdatingException("Exception during charta updating: " + e.getMessage());
+        }
+    }
+
+    public boolean deleteDirectory(File directoryToBeDeleted) {
+        File[] allContents = directoryToBeDeleted.listFiles();
+        if (allContents != null) {
+            for (File file : allContents) {
+                deleteDirectory(file);
+            }
+        }
+        return directoryToBeDeleted.delete();
+    }
+
+    public void deleteCharta(long chartaId) {
+        if (!deleteDirectory(new File(RESOURCES_DIR + str + chartaId))) {
+            throw new ChartaDeletingException("Can't delete charta block");
         }
     }
 }

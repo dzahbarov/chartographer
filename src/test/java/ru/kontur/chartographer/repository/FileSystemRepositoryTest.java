@@ -39,6 +39,8 @@ class FileSystemRepositoryTest {
         Assertions.assertTrue(Files.isDirectory(Path.of(location)));
         Assertions.assertTrue(Files.isDirectory(Path.of(location + chartaId)));
         Assertions.assertEquals(1, Objects.requireNonNull(new File(location + chartaId).list()).length);
+
+        assertTrue(fileSystemRepository.deleteDirectory(new File(location)));
     }
 
     @Test
@@ -54,6 +56,7 @@ class FileSystemRepositoryTest {
         Assertions.assertTrue(Files.isDirectory(Path.of(location)));
         Assertions.assertTrue(Files.isDirectory(Path.of(location + chartaId)));
         Assertions.assertEquals(1, Objects.requireNonNull(new File(location + chartaId).list()).length);
+        assertTrue(fileSystemRepository.deleteDirectory(new File(location)));
     }
 
 

@@ -60,11 +60,10 @@ public class ChartaService {
         int saved_x = x;
         int saved_y = y;
         int saved_height = height;
-//        List<Block> sorted = Collections.sort(chartaFromDb.getBlocks(), Comparator.comparing(Block::getId));
-//                chartaFromDb.getBlocks().sort());
 
         List<Block> sortedBlocks = new ArrayList<>(chartaFromDb.getBlocks());
-        sortedBlocks.sort(Comparator.comparing(Block::getId));
+        sortedBlocks.sort(Comparator.comparing(Block::getNumber));
+
         for (Block block : sortedBlocks) {
 
             int startBlock = block.getStartOfBlock();
@@ -130,7 +129,10 @@ public class ChartaService {
             throw new ChartaUploadingException("Charta during processing uploaded charta: " + e.getMessage());
         }
 
-        for (Block block : chartaFromDb.getBlocks()) {
+        List<Block> sortedBlocks = new ArrayList<>(chartaFromDb.getBlocks());
+        sortedBlocks.sort(Comparator.comparing(Block::getNumber));
+
+        for (Block block : sortedBlocks) {
             int startBlock = block.getStartOfBlock();
             int endBlock = block.getEndOfBlock();
 
@@ -155,8 +157,6 @@ public class ChartaService {
                 width = changeWidthForBorders(x, block, width);
                 height = changeHeightForBorders(y, block, height);
 
-
-
                 if (currentHeight != 0) y_shift = 0;
 
                 for (int j = 0; j < width; j++) {
@@ -170,12 +170,12 @@ public class ChartaService {
         }
     }
 
-    // TODO добавить удаление
     public void deleteImage(long id) {
         if (!chartaRepository.existsById(id)) {
             throw new ChartaNotFoundException("Charta with id " + id + " is not found");
         }
 
+        fileSystemRepository.deleteCharta(id);
         chartaRepository.deleteById(id);
     }
 
