@@ -60,8 +60,12 @@ public class ChartaService {
         int saved_x = x;
         int saved_y = y;
         int saved_height = height;
-//        chartaFromDb.getBlocks().sort(Comparator.comparing(Block::getId));
-        for (Block block : chartaFromDb.getBlocks()) {
+//        List<Block> sorted = Collections.sort(chartaFromDb.getBlocks(), Comparator.comparing(Block::getId));
+//                chartaFromDb.getBlocks().sort());
+
+        List<Block> sortedBlocks = new ArrayList<>(chartaFromDb.getBlocks());
+        sortedBlocks.sort(Comparator.comparing(Block::getId));
+        for (Block block : sortedBlocks) {
 
             int startBlock = block.getStartOfBlock();
             int endBlock = block.getEndOfBlock();
@@ -246,7 +250,7 @@ public class ChartaService {
 
     private Block createBlock(long chartaId, int blockId, int width, int height) {
         String location = fileSystemRepository.createBlock(chartaId, blockId, width, height);
-        return blockRepository.save(new Block(location, width, height, 5000 * blockId, 5000 * (blockId + 1) - 1));
+        return blockRepository.save(new Block(blockId, location, width, height, 5000 * blockId, 5000 * (blockId + 1) - 1));
     }
 
     private byte[] getBytes(BufferedImage image) {

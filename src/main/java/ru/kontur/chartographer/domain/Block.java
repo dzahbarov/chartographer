@@ -17,7 +17,7 @@ import javax.persistence.*;
 public class Block {
     @Id
     @GeneratedValue()
-    private Long id;
+    private long id;
 
     private String location;
 
@@ -36,6 +36,23 @@ public class Block {
         this.startOfBlock = start;
         this.endOfBlock = end;
     }
+
+    public Block(int id, String location, int width, int height, int start, int end) {
+        this.id = id;
+        this.location = location;
+        this.width = width;
+        this.height = height;
+        this.startOfBlock = start;
+        this.endOfBlock = end;
+    }
+    public Block(int id, int width, int height, int start, int end) {
+        this.id = id;
+        this.width = width;
+        this.height = height;
+        this.startOfBlock = start;
+        this.endOfBlock = end;
+    }
+
 
 //    public Block(int width, int height, String location) {
 //        this.location = location;
