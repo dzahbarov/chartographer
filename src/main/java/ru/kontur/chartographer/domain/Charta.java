@@ -22,7 +22,7 @@ public class Charta {
 
     @Id
     @GeneratedValue
-    private long id;
+    private Long id;
 
     @Positive
     @Max(50_000)
@@ -36,6 +36,12 @@ public class Charta {
     private List<Block> blocks;
 
     public Charta(int width, int height) {
+        this.height = height;
+        this.width = width;
+    }
+
+    public Charta(Long id, int width, int height) {
+        this.id = id;
         this.height = height;
         this.width = width;
     }

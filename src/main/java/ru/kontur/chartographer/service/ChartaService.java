@@ -2,6 +2,7 @@ package ru.kontur.chartographer.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
 import ru.kontur.chartographer.domain.Block;
 import ru.kontur.chartographer.domain.Charta;
 import ru.kontur.chartographer.exception.ChartaNotFoundException;
@@ -17,7 +18,10 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.IntStream;
 
 
 /**
@@ -39,7 +43,8 @@ public class ChartaService {
     public Charta createImage(int width, int height) {
         Charta charta = chartaRepository.save(new Charta(width, height));
         charta.setBlocks(generateEmptyBlocks(width, height, charta.getId()));
-        return chartaRepository.save(charta);
+        chartaRepository.save(charta);
+        return charta;
     }
 
     public byte[] getSubCharta(long id, int x, int y, int width, int height) {
@@ -55,18 +60,17 @@ public class ChartaService {
         int saved_x = x;
         int saved_y = y;
         int saved_height = height;
+//        chartaFromDb.getBlocks().sort(Comparator.comparing(Block::getId));
+        for (Block block : chartaFromDb.getBlocks()) {
 
-        for (int i = 0; i < chartaFromDb.getBlocks().size(); i++) {
-            int startBlock = 5000 * i;
-            int endBlock = 5000 * (i + 1) - 1;
+            int startBlock = block.getStartOfBlock();
+            int endBlock = block.getEndOfBlock();
 
             x = saved_x;
             y = saved_y;
             height = saved_height;
 
             if (isGoodBlock(y, endBlock, startBlock, height)) {
-
-                Block block = chartaFromDb.getBlocks().get(i);
 
                 y = y - startBlock;
 
@@ -84,7 +88,11 @@ public class ChartaService {
                 new_width = changeWidthForBorders(x, block, new_width);
                 new_height = changeHeightForBorders(y, block, new_height);
 
-                height = changeHeightForBorders(y, block, new_height);
+//                height = changeHeightForBorders(y, block, new_height);
+
+                if (y + new_height >= 5000) {
+                    height = block.getHeight() - y;
+                }
 
                 // Нужно пересчитать высоту при склейке
                 height -= currentHeight;
@@ -118,16 +126,15 @@ public class ChartaService {
             throw new ChartaUploadingException("Charta during processing uploaded charta: " + e.getMessage());
         }
 
-        for (int i = 0; i < chartaFromDb.getBlocks().size(); i++) {
-            int startBlock = 5000 * i;
-            int endBlock = 5000 * (i + 1) - 1;
+        for (Block block : chartaFromDb.getBlocks()) {
+            int startBlock = block.getStartOfBlock();
+            int endBlock = block.getEndOfBlock();
 
             y = saved_y;
             height = saved_height;
 
             if (isGoodBlock(y, endBlock, startBlock, height)) {
 
-                Block block = chartaFromDb.getBlocks().get(i);
                 BufferedImage blockFromDb = fileSystemRepository.findInFileSystem(block.getLocation());
 
                 y = y - startBlock;
@@ -135,15 +142,16 @@ public class ChartaService {
                 int x_shift = getShift(x);
                 int y_shift = getShift(y);
 
-                if (x < 0) width -= x_shift;
+                width = getWidth(x, width);
                 x = Math.max(x, 0);
 
-                if (y < 0) height -= y_shift;
+                height = getHeight(y, height);
                 y = Math.max(y, 0);
-
 
                 width = changeWidthForBorders(x, block, width);
                 height = changeHeightForBorders(y, block, height);
+
+
 
                 if (currentHeight != 0) y_shift = 0;
 
@@ -163,20 +171,21 @@ public class ChartaService {
         if (!chartaRepository.existsById(id)) {
             throw new ChartaNotFoundException("Charta with id " + id + " is not found");
         }
+
         chartaRepository.deleteById(id);
     }
 
 
     private int changeHeightForBorders(int y, Block block, int new_height) {
         if (y + new_height > block.getHeight()) {
-            new_height = block.getHeight() - y - 1;
+            new_height = block.getHeight() - y;
         }
         return new_height;
     }
 
     private int changeWidthForBorders(int x, Block block, int new_width) {
         if (x + new_width > block.getWidth()) {
-            new_width = block.getWidth() - x - 1;
+            new_width = block.getWidth() - x;
         }
         return new_width;
     }
@@ -224,25 +233,20 @@ public class ChartaService {
     }
 
     private List<Block> generateEmptyBlocks(int width, int height, long chartaId) {
-        List<Block> blocks = new ArrayList<>();
 
-        long blockId = 0;
-
-        while (height >= 5000) {
-            blocks.add(createBlock(chartaId, blockId++, width, 5000));
-            height -= 5000;
-        }
-
-        if (height > 0) {
-            blocks.add(createBlock(chartaId, blockId, width, height));
-        }
+        List<Block> blocks = Collections.synchronizedList(new ArrayList<>());
+        int numberOfFullBlocks = height / 5000;
+        int x = height - 5000 * numberOfFullBlocks != 0 ? 1 : 0;
+        IntStream.range(0, numberOfFullBlocks + x).parallel().forEach(i -> {
+            blocks.add(createBlock(chartaId, i, width, x == 0 ? 5000 : (i == numberOfFullBlocks + x - 1 ? height - 5000 * numberOfFullBlocks : 5000)));
+        });
 
         return blocks;
     }
 
-    private Block createBlock(long chartaId, long blockId, int width, int height) {
+    private Block createBlock(long chartaId, int blockId, int width, int height) {
         String location = fileSystemRepository.createBlock(chartaId, blockId, width, height);
-        return blockRepository.save(new Block(width, height, location));
+        return blockRepository.save(new Block(location, width, height, 5000 * blockId, 5000 * (blockId + 1) - 1));
     }
 
     private byte[] getBytes(BufferedImage image) {
@@ -257,7 +261,7 @@ public class ChartaService {
 
     private void validateCoordinates(Charta chartaFromDb, int x, int y, int width, int height) {
         if (x >= chartaFromDb.getWidth() || y >= chartaFromDb.getHeight() || x + width <= 0 || y + height <= 0) {
-            throw new InvalidChartaCoordinatesException("Invalid coordinates for updating");
+            throw new InvalidChartaCoordinatesException("Invalid coordinates");
         }
     }
 }

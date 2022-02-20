@@ -1,5 +1,6 @@
 package ru.kontur.chartographer.repository;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import ru.kontur.chartographer.domain.Block;
 import ru.kontur.chartographer.exception.ChartaCreatingException;
@@ -21,8 +22,10 @@ import java.util.Date;
 @Repository
 public class FileSystemRepository {
 
-    // TODO настроить загрузку из аргументов
-    String RESOURCES_DIR = FileSystemRepository.class.getResource("/").getPath();
+    @Value("${content.folder}")
+    private String str;
+
+    private String RESOURCES_DIR = System.getProperty("user.dir");
 
     public BufferedImage findInFileSystem(String location) {
         try {
@@ -33,9 +36,12 @@ public class FileSystemRepository {
     }
 
     public String createBlock(long chartaId, long blockId, int width, int height) {
-        String location = RESOURCES_DIR + chartaId + '/' + new Date().getTime() + "-" + blockId;
+        String location =  RESOURCES_DIR + str + chartaId + '/' + new Date().getTime() + "-" + Thread.currentThread().getName() + '-' + blockId;
         try {
-            Files.createDirectories(Path.of(location).getParent());
+            if (Path.of(location).getParent() != null) {
+                Files.createDirectories(Path.of(location).getParent());
+            }
+
             ImageIO.write(new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB), "bmp",  new File(location));
         } catch (IOException e) {
             throw new ChartaCreatingException("Error during creating exception: " + e.getMessage());
