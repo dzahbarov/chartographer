@@ -7,6 +7,8 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 import ru.kontur.chartographer.domain.Block;
 import ru.kontur.chartographer.domain.Charta;
 import ru.kontur.chartographer.exception.ChartaNotFoundException;
@@ -19,6 +21,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -61,7 +64,7 @@ class ChartaServiceTest {
 
     @Test()
     void testSubChartaInvalidCoordinates4() {
-        testCoordinates( 0, -350, 150, 350);
+        testCoordinates(0, -350, 150, 350);
     }
 
     @Test()
@@ -72,25 +75,24 @@ class ChartaServiceTest {
         assertEquals("Charta with id 42 is not found", exception.getMessage());
     }
 
-
     @Test()
-    void testSubCharta1FullImage() throws IOException {
+    void testSubChart1() throws IOException {
         runTestCat(1, 0, 0, 320, 320);
     }
 
     @Test()
-    void testSubChart1PartInnerImage() throws IOException {
+    void testSubChart2() throws IOException {
         runTestCat(2, 0, 0, 320, 100);
     }
 
     @Test()
-    void testSubChart2PartInnerImage() throws IOException {
+    void testSubChart3() throws IOException {
         runTestCat(3, 0, 0, 100, 320);
 
     }
 
     @Test()
-    void testSubChart3PartInnerImage() throws IOException {
+    void testSubChart4() throws IOException {
         runTestCat(4, 210, 0, 110, 320);
     }
 
@@ -129,7 +131,6 @@ class ChartaServiceTest {
     void testSubChart11() throws IOException {
         runTestCat(11, 49, 148, 247, 295);
     }
-
 
     @Test()
     void testSubChart12() throws IOException {
@@ -212,7 +213,6 @@ class ChartaServiceTest {
         runTestDouble(20, block2, block1, 400, 6000, -65, 5071, 565, 332);
     }
 
-
     @Test()
     void testSubChart21() throws IOException {
         Block block1 = new Block(0, 400, 5000, 0, 4999);
@@ -241,6 +241,147 @@ class ChartaServiceTest {
         runTestDouble(22, block2, block1, 400, 6000, -378, 4595, 1152, 1458);
     }
 
+    @Test()
+    void testSubChart23() throws IOException {
+        Block block1 = new Block(0, "src/test/resources/testSubCharta23/block1.bmp", 400, 5000, 0, 4999);
+        Block block2 = new Block(1, "src/test/resources/testSubCharta23/block2.bmp", 400, 5000, 5000, 9999);
+        Block block3 = new Block(1, "src/test/resources/testSubCharta23/block3.bmp", 400, 2000, 10000, 11999);
+
+        Charta charta = new Charta(42L, 400, 12000);
+        charta.setBlocks(List.of(block1, block2, block3));
+
+        Mockito.doReturn(Optional.of(charta))
+                .when(chartaRepository)
+                .findById(42L);
+
+        Mockito.doReturn(ImageIO.read(new File(block1.getLocation())))
+                .when(fileSystemRepository)
+                .findInFileSystem(block1.getLocation());
+
+        Mockito.doReturn(ImageIO.read(new File(block2.getLocation())))
+                .when(fileSystemRepository)
+                .findInFileSystem(block2.getLocation());
+
+        Mockito.doReturn(ImageIO.read(new File(block3.getLocation())))
+                .when(fileSystemRepository)
+                .findInFileSystem(block3.getLocation());
+
+
+        byte[] subCharta = chartaService.getSubCharta(42L, -58, 5034, 548, 4994);
+
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(subCharta));
+        BufferedImage expectedImage = ImageIO.read(new File("src/test/resources/testSubCharta23/expected_output.bmp"));
+        checkImagesEquals(image, expectedImage);
+    }
+
+    @Test()
+    void testSubChart24() throws IOException {
+        Block block1 = new Block(0, "src/test/resources/testSubCharta24/block1.bmp", 400, 5000, 0, 4999);
+        Block block2 = new Block(1, "src/test/resources/testSubCharta24/block2.bmp", 400, 5000, 5000, 9999);
+        Block block3 = new Block(1, "src/test/resources/testSubCharta24/block3.bmp", 400, 2000, 10000, 11999);
+
+        Charta charta = new Charta(42L, 400, 12000);
+        charta.setBlocks(List.of(block1, block2, block3));
+
+        Mockito.doReturn(Optional.of(charta))
+                .when(chartaRepository)
+                .findById(42L);
+
+        Mockito.doReturn(ImageIO.read(new File(block1.getLocation())))
+                .when(fileSystemRepository)
+                .findInFileSystem(block1.getLocation());
+
+        Mockito.doReturn(ImageIO.read(new File(block2.getLocation())))
+                .when(fileSystemRepository)
+                .findInFileSystem(block2.getLocation());
+
+        Mockito.doReturn(ImageIO.read(new File(block3.getLocation())))
+                .when(fileSystemRepository)
+                .findInFileSystem(block3.getLocation());
+
+        byte[] subCharta = chartaService.getSubCharta(42L, -902, 9824, 2866, 152);
+
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(subCharta));
+        BufferedImage expectedImage = ImageIO.read(new File("src/test/resources/testSubCharta24/expected_output.bmp"));
+        checkImagesEquals(image, expectedImage);
+    }
+
+    void runUpdateCharta1(int N, int x, int y, int width, int height) throws IOException {
+        Block block = new Block(String.format("src/test/resources/testUpdateSubCharta%s/input.bmp", N), 320, 320, 0, 320);
+
+        Charta charta = new Charta(42L, 320, 320);
+        charta.setBlocks(List.of(block));
+
+        Mockito.doReturn(Optional.of(charta))
+                .when(chartaRepository)
+                .findById(42L);
+
+        Mockito.doReturn(ImageIO.read(new File(block.getLocation())))
+                .when(fileSystemRepository)
+                .findInFileSystem(block.getLocation());
+
+        MultipartFile multipartFile = new MockMultipartFile("test.xlsx", new FileInputStream(String.format("src/test/resources/testUpdateSubCharta%s/addImg.bmp", N)));
+
+        chartaService.updateCharta(42L, x, y, width, height, multipartFile);
+
+        byte[] subCharta = chartaService.getSubCharta(42L, 0, 0, 320, 320);
+
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(subCharta));
+        BufferedImage expectedImage = ImageIO.read(new File("src/test/resources/testUpdateSubCharta1/expected_output.bmp"));
+        checkImagesEquals(image, expectedImage);
+    }
+
+    @Test()
+    void testUpdateCharta1() throws IOException {
+        Block block = new Block("src/test/resources/testUpdateSubCharta1/input.bmp", 320, 320, 0, 320);
+
+        Charta charta = new Charta(42L, 320, 320);
+        charta.setBlocks(List.of(block));
+
+        Mockito.doReturn(Optional.of(charta))
+                .when(chartaRepository)
+                .findById(42L);
+
+        Mockito.doReturn(ImageIO.read(new File(block.getLocation())))
+                .when(fileSystemRepository)
+                .findInFileSystem(block.getLocation());
+
+        MultipartFile multipartFile = new MockMultipartFile("test.xlsx", new FileInputStream("src/test/resources/testUpdateSubCharta1/addImg.bmp"));
+
+        chartaService.updateCharta(42L, -123, -51, 320, 320, multipartFile);
+
+        byte[] subCharta = chartaService.getSubCharta(42L, 0, 0, 320, 320);
+
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(subCharta));
+        BufferedImage expectedImage = ImageIO.read(new File("src/test/resources/testUpdateSubCharta1/expected_output.bmp"));
+        checkImagesEquals(image, expectedImage);
+    }
+
+    @Test()
+    void testUpdateCharta2() throws IOException {
+        Block block = new Block("src/test/resources/testUpdateSubCharta1/input.bmp", 320, 320, 0, 320);
+
+        Charta charta = new Charta(42L, 320, 320);
+        charta.setBlocks(List.of(block));
+
+        Mockito.doReturn(Optional.of(charta))
+                .when(chartaRepository)
+                .findById(42L);
+
+        Mockito.doReturn(ImageIO.read(new File(block.getLocation())))
+                .when(fileSystemRepository)
+                .findInFileSystem(block.getLocation());
+
+        MultipartFile multipartFile = new MockMultipartFile("test.xlsx", new FileInputStream("src/test/resources/testUpdateSubCharta1/addImg.bmp"));
+
+        chartaService.updateCharta(42L, -123, -51, 320, 320, multipartFile);
+
+        byte[] subCharta = chartaService.getSubCharta(42L, 0, 0, 320, 320);
+
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(subCharta));
+        BufferedImage expectedImage = ImageIO.read(new File("src/test/resources/testUpdateSubCharta1/expected_output.bmp"));
+        checkImagesEquals(image, expectedImage);
+    }
 
 
     @Test
@@ -455,7 +596,6 @@ class ChartaServiceTest {
         assertEquals(image.getBlocks().size(), 10);
     }
 
-
     private void checkImagesEquals(BufferedImage newImage, BufferedImage outImage) {
         assertEquals(newImage.getHeight(), outImage.getHeight());
         assertEquals(newImage.getWidth(), outImage.getWidth());
@@ -496,8 +636,6 @@ class ChartaServiceTest {
             block2.setLocation(String.format("src/test/resources/testSubCharta%d/block1.bmp", N));
         }
 
-
-
         Charta charta = new Charta(42L, chartaWidth, chartaHeight);
         charta.setBlocks(List.of(block1, block2));
 
@@ -520,7 +658,6 @@ class ChartaServiceTest {
         checkImagesEquals(image, expectedImage);
     }
 
-
     private void testCoordinates(int x, int y, int width, int height) {
         Mockito.doReturn(Optional.of(new Charta(42L, 150, 350))).when(chartaRepository).findById(ArgumentMatchers.any());
 
@@ -529,5 +666,4 @@ class ChartaServiceTest {
 
         assertEquals("Invalid coordinates", exception.getMessage());
     }
-
 }
