@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import ru.dzahbarov.kontur.intern.chartographer.service.ChartaService;
 
 import javax.validation.ConstraintViolationException;
@@ -36,13 +35,15 @@ public class ChartographerController {
         return Long.toString(chartaService.createImage(width, height).getId());
     }
 
-    @PostMapping(value = "{id}")
+    @PostMapping("{id}")
     public void updateImage(@PathVariable long id,
                             @RequestParam int x,
                             @RequestParam int y,
-                            @RequestParam @Positive @Max(20_000) int width,
-                            @RequestParam @Positive @Max(50_000) int height,
-                            @RequestParam(value = "image") MultipartFile image) {
+                            @RequestParam @Positive int width,
+                            @RequestParam @Positive int height,
+                            @RequestBody byte[] image) {
+        // Надеюсь, что image влезет в память. Можно было бы записать этот файл на диск, но тогда пришлось бы парсить bmp руками,
+        // но тогда все решение можно было бы переписать таким образом, но за неимением времени оставлю как есть :(
         chartaService.updateCharta(id, x, y, width, height, image);
     }
 

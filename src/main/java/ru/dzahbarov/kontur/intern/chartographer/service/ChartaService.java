@@ -76,7 +76,7 @@ public class ChartaService {
     }
 
 
-    public void updateCharta(long id, int x, int y, int width, int height, MultipartFile image) {
+    public void updateCharta(long id, int x, int y, int width, int height, byte[] image) {
 
         Charta chartaFromDb = chartaRepository.findById(id).orElseThrow(
                 () -> new ChartaNotFoundException(String.format("Charta with id %d is not found", id)));
@@ -85,11 +85,9 @@ public class ChartaService {
 
         int currentHeight = 0;
 
-        // Надеюсь, что влезет в память. Можно было бы положить записать этот файл на диск, но тогда пришлось бы парсить bmp руками,
-        // но тогда все решение можно было бы переписать таким образом, но за неимением времени оставлю как есть :(
         BufferedImage newImage;
         try {
-            newImage = ImageIO.read(new ByteArrayInputStream(image.getBytes()));
+            newImage = ImageIO.read(new ByteArrayInputStream(image));
         } catch (IOException e) {
             throw new ChartaUploadingException("Charta during processing uploaded charta: " + e.getMessage());
         }

@@ -321,7 +321,7 @@ class ChartaServiceTest {
 
         MultipartFile multipartFile = new MockMultipartFile("test.xlsx", new FileInputStream(String.format("src/test/resources/testUpdateSubCharta%s/addImg.bmp", N)));
 
-        chartaService.updateCharta(42L, x, y, width, height, multipartFile);
+        chartaService.updateCharta(42L, x, y, width, height, multipartFile.getBytes());
 
         byte[] subCharta = chartaService.getSubCharta(42L, 0, 0, 320, 320);
 
@@ -347,7 +347,7 @@ class ChartaServiceTest {
 
         MultipartFile multipartFile = new MockMultipartFile("test.xlsx", new FileInputStream("src/test/resources/testUpdateSubCharta1/addImg.bmp"));
 
-        chartaService.updateCharta(42L, -123, -51, 320, 320, multipartFile);
+        chartaService.updateCharta(42L, -123, -51, 320, 320, multipartFile.getBytes());
 
         byte[] subCharta = chartaService.getSubCharta(42L, 0, 0, 320, 320);
 
@@ -373,7 +373,7 @@ class ChartaServiceTest {
 
         MultipartFile multipartFile = new MockMultipartFile("test.xlsx", new FileInputStream("src/test/resources/testUpdateSubCharta1/addImg.bmp"));
 
-        chartaService.updateCharta(42L, -123, -51, 320, 320, multipartFile);
+        chartaService.updateCharta(42L, -123, -51, 320, 320, multipartFile.getBytes());
 
         byte[] subCharta = chartaService.getSubCharta(42L, 0, 0, 320, 320);
 
