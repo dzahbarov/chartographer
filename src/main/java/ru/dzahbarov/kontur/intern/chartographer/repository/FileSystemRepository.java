@@ -28,7 +28,7 @@ public class FileSystemRepository {
     @Value("${content.folder}")
     private String RESOURCE_PATH;
 
-    private static final String PATH_TO_HOME = System.getProperty("user.dir");
+//    private static final String PATH_TO_HOME = System.getProperty("user.dir");
 
     public BufferedImage findInFileSystem(String location) {
         try {
@@ -40,7 +40,7 @@ public class FileSystemRepository {
 
     public String createBlock(long chartaId, long blockId, int width, int height) {
 
-        String location = PATH_TO_HOME + RESOURCE_PATH + chartaId + '/' + new Date().getTime() + "-" + Thread.currentThread().getName() + '-' + blockId;
+        String location =  RESOURCE_PATH + "/" + chartaId + '/' + new Date().getTime() + "-" + Thread.currentThread().getName() + '-' + blockId;
         try {
             if (Path.of(location).getParent() != null) {
                 Files.createDirectories(Path.of(location).getParent());
@@ -71,7 +71,7 @@ public class FileSystemRepository {
     }
 
     public void deleteCharta(long chartaId) {
-        if (!deleteDirectory(new File(PATH_TO_HOME + RESOURCE_PATH + chartaId))) {
+        if (!deleteDirectory(new File(RESOURCE_PATH +"/"+ chartaId))) {
             throw new ChartaDeletingException("Can't delete charta block");
         }
     }
